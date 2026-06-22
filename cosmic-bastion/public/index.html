@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cosmic Bastion - 宇宙堡垒</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <!-- Three.js canvas fills the entire background -->
+  <canvas id="bg-canvas"></canvas>
+
+  <!-- ========== START SCREEN ========== -->
+  <div id="start-screen" class="screen active">
+    <div class="start-content">
+      <div class="title-group">
+        <div class="subtitle-top">// DEFENSE PROTOCOL v3.7</div>
+        <h1 class="game-title">
+          <span class="title-cosmic">COSMIC</span>
+          <span class="title-bastion">BASTION</span>
+        </h1>
+        <div class="subtitle-cn">宇 宙 堡 垒</div>
+      </div>
+
+      <div class="difficulty-group">
+        <div class="diff-label">难度选择 DIFFICULTY</div>
+        <div class="diff-buttons">
+          <button class="diff-btn" data-diff="easy">简单 EASY</button>
+          <button class="diff-btn active" data-diff="normal">普通 NORMAL</button>
+          <button class="diff-btn" data-diff="hard">困难 HARD</button>
+        </div>
+      </div>
+
+      <div class="menu-buttons">
+        <button id="btn-start" class="menu-btn primary">
+          <span class="btn-icon">▶</span>
+          <span class="btn-text">启动防御协议</span>
+          <span class="btn-sub">START DEFENSE</span>
+        </button>
+        <button id="btn-scores" class="menu-btn">
+          <span class="btn-icon">◆</span>
+          <span class="btn-text">战绩档案</span>
+          <span class="btn-sub">HIGH SCORES</span>
+        </button>
+        <button id="btn-help" class="menu-btn">
+          <span class="btn-icon">?</span>
+          <span class="btn-text">作战指南</span>
+          <span class="btn-sub">TACTICAL GUIDE</span>
+        </button>
+        <button id="btn-story" class="menu-btn">
+          <span class="btn-icon">☉</span>
+          <span class="btn-text">星舰日志</span>
+          <span class="btn-sub">STARSHIP LOG</span>
+        </button>
+        <button id="btn-achievements" class="menu-btn">
+          <span class="btn-icon">★</span>
+          <span class="btn-text">成就殿堂</span>
+          <span class="btn-sub">ACHIEVEMENTS</span>
+        </button>
+      </div>
+
+      <div class="start-footer">
+        <span class="blink">[ SYSTEM READY ]</span>
+        <span class="version">BUILD 2026.06.18</span>
+      </div>
+    </div>
+
+    <!-- Scores Panel (hidden by default) -->
+    <div id="scores-panel" class="overlay-panel hidden">
+      <div class="panel-inner">
+        <h2 class="panel-title">◆ 战绩档案 // HIGH SCORES</h2>
+        <div id="scores-list" class="scores-list"></div>
+        <button class="panel-close" onclick="document.getElementById('scores-panel').classList.add('hidden')">[ 返回 BACK ]</button>
+      </div>
+    </div>
+
+    <!-- Help Panel -->
+    <div id="help-panel" class="overlay-panel hidden">
+      <div class="panel-inner">
+        <h2 class="panel-title">? 作战指南 // TACTICAL GUIDE</h2>
+        <div class="guide-content">
+          <div class="guide-section">
+            <h3>// 任务目标 MISSION</h3>
+            <p>保卫空间站核心，阻止敌方舰队在航道上推进。在浮空平台上部署防御塔，消灭每一波来犯之敌。</p>
+          </div>
+          <div class="guide-section">
+            <h3>// 防御塔 TOWERS</h3>
+            <p><span class="c-cyan">激光塔</span> — 高射速，稳定伤害<br/>
+               <span class="c-magenta">等离子炮</span> — 高伤害，慢射速<br/>
+               <span class="c-purple">引力井</span> — 减速范围内敌人<br/>
+               <span class="c-gold">新星炮</span> — 超远射程，毁灭打击</p>
+          </div>
+          <div class="guide-section">
+            <h3>// 操作 CONTROLS</h3>
+            <p>鼠标左键 — 选择/放置防御塔<br/>
+               鼠标右键 — 取消选择<br/>
+               滚轮 — 缩放视角<br/>
+               Q/E — 旋转视角<br/>
+               空格 — 开始下一波</p>
+          </div>
+          <div class="guide-section">
+            <h3>// 新功能 NEW FEATURES</h3>
+            <p>点击已放置的防御塔可进行升级 (最多3级)<br/>
+               P — 暂停/继续游戏<br/>
+               +/- — 调整游戏速度 (1x/2x/3x)<br/>
+               T — 切换目标模式 (FIRST/LAST/STRONG/WEAK)<br/>
+               A — 切换自动波次 (每5秒自动开始下一波)</p>
+          </div>
+        </div>
+        <button class="panel-close" onclick="document.getElementById('help-panel').classList.add('hidden')">[ 返回 BACK ]</button>
+      </div>
+    </div>
+
+    <!-- Level Selection Panel -->
+    <div id="levels-panel" class="overlay-panel hidden">
+      <div class="panel-inner">
+        <h2 class="panel-title">⊞ 关卡选择 // LEVEL SELECT</h2>
+        <div id="levels-grid" class="levels-grid"></div>
+        <button class="panel-close" onclick="document.getElementById('levels-panel').classList.add('hidden')">[ 返回 BACK ]</button>
+      </div>
+    </div>
+
+    <!-- Story Panel -->
+    <div id="story-panel" class="overlay-panel hidden">
+      <div class="panel-inner">
+        <h2 class="panel-title">☉ 星舰日志 // STARSHIP LOG</h2>
+        <div class="story-content">
+          <div class="story-chapter">
+            <h3>序章：最后的堡垒</h3>
+            <p>公元3187年，人类文明最后的星际要塞"Cosmic Bastion"孤悬于银河边缘。这座由先驱文明遗留的防御矩阵驱动的空间站，守护着连接已知宇宙的唯一虫洞枢纽。</p>
+          </div>
+          <div class="story-chapter">
+            <h3>威胁：虚空涌潮</h3>
+            <p>暗物质军团"Void Swarm"从维度裂隙中涌现。陨石舰打头阵，侦察机刺探防线，巡洋舰编队强攻核心，而传说中的宇宙泰坦——移动要塞级战舰，正缓缓逼近。它们的唯一目标：摧毁虫洞稳定器，将人类永远封锁在银河的死角。</p>
+          </div>
+          <div class="story-chapter">
+            <h3>使命：防御指挥官</h3>
+            <p>你是空间站最后一位获得防御矩阵授权的指挥官。四座远古武器 awaiting 你的指令：激光塔的高频输出、等离子炮的毁灭打击、引力井的时空扭曲、新星炮的终极制裁。在15个浮空平台上部署你的防线，抵御10波越来越凶猛的进攻。</p>
+          </div>
+          <div class="story-chapter">
+            <h3>信念：堡垒永不陷落</h3>
+            <p>"当星辰黯淡，唯有堡垒的光芒指引归途。" —— 先驱铭文</p>
+          </div>
+        </div>
+        <button class="panel-close" onclick="document.getElementById('story-panel').classList.add('hidden')">[ 返回 BACK ]</button>
+      </div>
+    </div>
+
+    <!-- Achievements Panel -->
+    <div id="achievements-panel" class="overlay-panel hidden">
+      <div class="panel-inner">
+        <h2 class="panel-title">★ 成就殿堂 // ACHIEVEMENTS</h2>
+        <div id="achievements-list" class="achievements-list"></div>
+        <button class="panel-close" onclick="document.getElementById('achievements-panel').classList.add('hidden')">[ 返回 BACK ]</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== GAME SCREEN ========== -->
+  <div id="game-screen" class="screen">
+    <!-- Top HUD -->
+    <div id="game-hud" class="hud">
+      <div class="hud-left">
+        <div class="hud-item">
+          <span class="hud-label">WAVE</span>
+          <span id="hud-wave" class="hud-value">0/10</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">ENEMIES</span>
+          <span id="hud-enemies" class="hud-value">0</span>
+        </div>
+      </div>
+      <div class="hud-center">
+        <div id="wave-announce" class="wave-announce hidden"></div>
+        <div id="wave-preview" class="wave-preview hidden"></div>
+        <div id="story-narration" class="story-narration hidden"></div>
+      </div>
+      <div class="hud-right">
+        <div class="hud-item">
+          <span class="hud-label">SPEED</span>
+          <span id="hud-speed" class="hud-value c-green">1x</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">CREDITS</span>
+          <span id="hud-credits" class="hud-value c-gold">200</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">CORE HP</span>
+          <span id="hud-hp" class="hud-value c-cyan">100</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">SCORE</span>
+          <span id="hud-score" class="hud-value">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tower Selection Panel -->
+    <div id="tower-panel" class="tower-panel">
+      <div class="tower-panel-title">DEPLOY TOWER</div>
+      <div id="tower-buttons" class="tower-buttons"></div>
+      <div id="tower-info" class="tower-info hidden">
+        <div id="tower-info-name" class="tower-info-name"></div>
+        <div id="tower-info-stats" class="tower-info-stats"></div>
+      </div>
+    </div>
+
+    <!-- Targeting Mode Indicator -->
+    <div id="target-mode" class="target-mode">
+      <span class="target-label">TARGET</span>
+      <span id="target-mode-text" class="target-text">FIRST</span>
+    </div>
+
+    <!-- Auto-wave Indicator -->
+    <div id="auto-wave-indicator" class="auto-wave-indicator hidden">
+      <span>AUTO</span>
+      <span id="auto-timer" class="auto-timer">5</span>
+    </div>
+
+    <!-- Bottom Controls -->
+    <div class="game-bottom-bar">
+      <button id="btn-next-wave" class="wave-btn">
+        <span class="wave-btn-text">[ SPACE ] 下一波 NEXT WAVE</span>
+      </button>
+      <button id="btn-sell-mode" class="wave-btn small">
+        <span class="wave-btn-text">回收模式 SELL [S]</span>
+      </button>
+    </div>
+
+    <!-- Pause Overlay -->
+    <div id="pause-overlay" class="overlay-panel hidden">
+      <div class="panel-inner pause-panel">
+        <h2 class="panel-title pause-title">⏸ 已暂停 PAUSED</h2>
+        <div class="pause-info">按 P 继续游戏</div>
+        <button id="btn-resume" class="menu-btn primary">
+          <span class="btn-text">继续游戏</span>
+          <span class="btn-sub">RESUME [P]</span>
+        </button>
+        <button id="btn-pause-menu" class="menu-btn">
+          <span class="btn-text">返回主页</span>
+          <span class="btn-sub">MAIN MENU</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Achievement Popup -->
+    <div id="achievement-popup" class="achievement-popup hidden">
+      <div class="achievement-inner">
+        <div class="achievement-icon">★</div>
+        <div class="achievement-text">
+          <div class="achievement-title" id="ach-title">成就解锁</div>
+          <div class="achievement-desc" id="ach-desc"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tower Context Menu -->
+    <div id="tower-context-menu" class="tower-context-menu hidden">
+      <div class="tcm-header">
+        <span id="tcm-name" class="tcm-name"></span>
+        <span id="tcm-level" class="tcm-level"></span>
+      </div>
+      <div class="tcm-stats" id="tcm-stats"></div>
+      <div class="tcm-actions">
+        <button id="tcm-upgrade" class="tcm-btn tcm-upgrade">
+          <span class="tcm-btn-icon">⬆</span>
+          <span id="tcm-upgrade-text" class="tcm-btn-text">升级</span>
+        </button>
+        <button id="tcm-sell" class="tcm-btn tcm-sell">
+          <span class="tcm-btn-icon">✕</span>
+          <span id="tcm-sell-text" class="tcm-btn-text">出售</span>
+        </button>
+      </div>
+      <div class="tcm-target-section">
+        <div class="tcm-target-label">目标模式 TARGET</div>
+        <div class="tcm-target-btns">
+          <button class="tcm-target-btn" data-mode="FIRST">FIRST</button>
+          <button class="tcm-target-btn" data-mode="LAST">LAST</button>
+          <button class="tcm-target-btn" data-mode="STRONG">STRONG</button>
+          <button class="tcm-target-btn" data-mode="WEAK">WEAK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Over Overlay -->
+    <div id="gameover-overlay" class="overlay-panel hidden">
+      <div class="panel-inner">
+        <h2 id="gameover-title" class="panel-title gameover-title">防线崩溃</h2>
+        <div class="gameover-stats">
+          <div class="stat-row"><span>存活波次</span><span id="go-wave">0</span></div>
+          <div class="stat-row"><span>消灭敌人</span><span id="go-kills">0</span></div>
+          <div class="stat-row"><span>最终得分</span><span id="go-score">0</span></div>
+          <div class="stat-row"><span>成就解锁</span><span id="go-ach">0</span></div>
+        </div>
+        <div class="gameover-input">
+          <input id="go-name" type="text" placeholder="输入指挥官代号..." maxlength="20" />
+          <button id="btn-submit-score" class="menu-btn small-btn">提交分数</button>
+        </div>
+        <button id="btn-restart" class="menu-btn primary">
+          <span class="btn-text">重新部署</span>
+          <span class="btn-sub">RESTART</span>
+        </button>
+        <button id="btn-menu" class="menu-btn">
+          <span class="btn-text">返回主页</span>
+          <span class="btn-sub">MAIN MENU</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Victory Overlay -->
+    <div id="victory-overlay" class="overlay-panel hidden">
+      <div class="panel-inner victory-panel">
+        <h2 class="panel-title victory-title">★ 防线坚守 ★</h2>
+        <div class="victory-subtitle">ALL WAVES DEFEATED</div>
+        <div class="gameover-stats">
+          <div class="stat-row"><span>消灭敌人</span><span id="v-kills">0</span></div>
+          <div class="stat-row"><span>剩余生命</span><span id="v-hp">0</span></div>
+          <div class="stat-row"><span>最终得分</span><span id="v-score">0</span></div>
+          <div class="stat-row"><span>成就解锁</span><span id="v-ach">0</span></div>
+        </div>
+        <div class="gameover-input">
+          <input id="v-name" type="text" placeholder="输入指挥官代号..." maxlength="20" />
+          <button id="btn-submit-score-v" class="menu-btn small-btn">提交分数</button>
+        </div>
+        <button id="btn-restart-v" class="menu-btn primary">
+          <span class="btn-text">再次挑战</span>
+          <span class="btn-sub">PLAY AGAIN</span>
+        </button>
+        <button id="btn-menu-v" class="menu-btn">
+          <span class="btn-text">返回主页</span>
+          <span class="btn-sub">MAIN MENU</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Map for Three.js -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>
