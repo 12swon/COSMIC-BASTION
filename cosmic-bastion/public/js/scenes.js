@@ -70,6 +70,11 @@ export class GameScene {
     this.scene.fog = new THREE.FogExp2(0x030310, 0.012);
     this.cam = new THREE.PerspectiveCamera(50,(innerWidth||1280)/(innerHeight||800),0.1,500);
     this.cam.position.set(0,38,26); this.cam.lookAt(0,0,2);
+    /* Spherical camera control state */
+    this.camTarget=new THREE.Vector3(0,0,2);
+    this.camDist=44; this.camPolar=0.95; this.camAzimuth=0;
+    this.camMinDist=15; this.camMaxDist=70;
+    this._camAnim=null; this._followTarget=null;
     this.renderer = new THREE.WebGLRenderer({antialias:true,alpha:false});
     const gW=innerWidth||1280, gH=innerHeight||800;
     this.renderer.setSize(gW, gH);
@@ -153,7 +158,55 @@ export class GameScene {
   /* BUG FIX: enable pointer-events when game canvas is shown */
   show(){ this.canvas.style.display='block'; this.canvas.style.pointerEvents='auto'; }
   hide(){ this.canvas.style.display='none'; this.canvas.style.pointerEvents='none'; }
+  /* Camera control methods */
+  zoom(delta){
+    this.camDist=Math.max(this.camMinDist,Math.min(this.camMaxDist,this.camDist+delta*2));
+  }
+  pan(dx,dy){
+    const speed=this.camDist*0.002;
+    const sinA=Math.sin(this.camAzimuth), cosA=Math.cos(this.camAzimuth);
+    this.camTarget.x+=(-dx*cosA-dy*sinA)*speed;
+    this.camTarget.z+=(dx*sinA-dy*cosA)*speed;
+    this.camTarget.x=Math.max(-30,Math.min(30,this.camTarget.x));
+    this.camTarget.z=Math.max(-30,Math.min(30,this.camTarget.z));
+  }
+  rotate(da){ this.camAzimuth+=da; }
+  follow(target){ this._followTarget=target; }
+  unfollow(){ this._followTarget=null; }
+  updateCamera(){
+    if(this._followTarget){
+      if(this._followTarget.dead){this._followTarget=null;}
+      else{this.camTarget.lerp(this._followTarget.mesh.position,0.1);}
+    }
+    if(this._camAnim){
+      const a=this._camAnim;
+      a.t+=performance.now()*0.001-a._lastT; a._lastT=performance.now()*0.001;
+      const p=Math.min(a.t/a.dur,1);
+      const ease=1-Math.pow(1-p,3);
+      this.camDist=a.fromDist+(a.toDist-a.fromDist)*ease;
+      this.camPolar=a.fromPolar+(a.toPolar-a.fromPolar)*ease;
+      this.camTarget.lerpVectors(a.fromTarget,a.toTarget,ease);
+      if(p>=1) this._camAnim=null;
+    }
+    const sp=Math.sin(this.camPolar), cp=Math.cos(this.camPolar);
+    const sa=Math.sin(this.camAzimuth), ca=Math.cos(this.camAzimuth);
+    this.cam.position.set(
+      this.camTarget.x+this.camDist*sp*sa,
+      this.camTarget.y+this.camDist*cp,
+      this.camTarget.z+this.camDist*sp*ca
+    );
+    this.cam.lookAt(this.camTarget);
+  }
+  animateTo(dist,polar,target,dur){
+    this._camAnim={
+      fromDist:this.camDist, toDist:dist,
+      fromPolar:this.camPolar, toPolar:polar,
+      fromTarget:this.camTarget.clone(), toTarget:target.clone(),
+      dur:dur, t:0, _lastT:performance.now()*0.001
+    };
+  }
   render(){
+    this.updateCamera();
     const t=performance.now()*0.001;
     this.coreMesh.rotation.y=t*0.5;
     this.coreMesh.rotation.x=Math.sin(t*0.3)*0.2;

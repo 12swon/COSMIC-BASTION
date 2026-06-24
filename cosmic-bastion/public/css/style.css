@@ -1040,3 +1040,120 @@ html, body {
   background: rgba(0, 240, 255, 0.1);
   color: var(--cyan);
 }
+
+/* ==========================================
+   VFX: COMBO DISPLAY, DAMAGE NUMBERS, FOLLOW, PREVIEW
+   ========================================== */
+
+/* Follow Mode Indicator */
+.follow-indicator {
+  position: fixed;
+  left: 50%;
+  bottom: 70px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  z-index: 25;
+  pointer-events: none;
+  background: rgba(3, 3, 8, 0.85);
+  border: 1px solid var(--cyan);
+  padding: 6px 18px;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  color: var(--cyan);
+  letter-spacing: 3px;
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+  animation: fadeIn 0.3s ease;
+}
+.follow-indicator.hidden { display: none; }
+.follow-sub {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: rgba(0, 240, 255, 0.5);
+  letter-spacing: 1px;
+}
+
+/* Combo Kill Display */
+.combo-display {
+  position: fixed;
+  right: 80px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  z-index: 25;
+  pointer-events: none;
+  background: rgba(3, 3, 8, 0.8);
+  border: 1px solid var(--gold);
+  padding: 10px 20px;
+  animation: comboPulse 0.3s ease;
+}
+.combo-display.hidden { display: none; }
+.combo-count {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--gold);
+  text-shadow: 0 0 20px rgba(255, 170, 0, 0.6), 0 0 40px rgba(255, 170, 0, 0.3);
+  line-height: 1;
+}
+.combo-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: rgba(255, 170, 0, 0.7);
+  letter-spacing: 4px;
+}
+
+@keyframes comboPulse {
+  0% { transform: translateY(-50%) scale(1.3); opacity: 0.7; }
+  100% { transform: translateY(-50%) scale(1); opacity: 1; }
+}
+
+/* Floating Damage Numbers */
+.damage-numbers {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 30;
+  overflow: hidden;
+}
+.damage-number {
+  position: absolute;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  pointer-events: none;
+  text-shadow: 0 0 6px currentColor;
+  white-space: nowrap;
+  transform: translate(-50%, 0);
+  animation: floatUp 0.8s ease-out forwards;
+}
+
+@keyframes floatUp {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1.2);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(calc(-50% + 8px), -18px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + 12px), -45px) scale(0.7);
+  }
+}
+
+/* Tower Preview Canvas */
+.tower-preview-canvas {
+  border-radius: 4px;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
+}
+.tower-preview-canvas.hidden { display: none; }

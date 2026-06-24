@@ -3,7 +3,7 @@
 // Enhanced 3D models + shooting + upgrades
 // =============================================
 import * as THREE from 'three';
-import { Projectile } from './projectiles.js';
+import { Projectile, MuzzleFlash, GravityPulse } from './projectiles.js';
 
 export class Tower {
   constructor(def, pos, scene){
@@ -135,7 +135,7 @@ export class Tower {
     }
     return true;
   }
-  update(dt, enemies, projectiles, gameTargetMode, sound){
+  update(dt, enemies, projectiles, gameTargetMode, sound, effects){
     this.cooldown=Math.max(0,this.cooldown-dt);
     const t=performance.now()*0.001;
     const ap=this._animParts;
@@ -191,16 +191,23 @@ export class Tower {
     if(this.target && this.cooldown<=0){
       this.cooldown=this.def.rate;
       if(sound) sound.play('shoot');
+      const muzzlePos=this.group.position.clone();
       if(this.def.id==='gravity'){
+        muzzlePos.y=1.2;
+        /* Spacetime ripple effect */
+        if(effects) effects.push(new GravityPulse(this.group.position.clone(),range,this.group.parent));
         for(const e of enemies){
           if(!e.dead && e.mesh.position.distanceTo(this.group.position)<range){
-            projectiles.push(new Projectile(this.group.position.clone().setY(1.2),e,dmg,0x8844ff,6,this.group.parent));
+            projectiles.push(new Projectile(muzzlePos,e,dmg,0x8844ff,6,this.group.parent));
           }
         }
       } else {
-        projectiles.push(new Projectile(this.group.position.clone().setY(1.8),this.target,dmg,this.def.color,
+        muzzlePos.y=1.8;
+        projectiles.push(new Projectile(muzzlePos,this.target,dmg,this.def.color,
           this.def.id==='nova'?5:8, this.group.parent));
       }
+      /* Muzzle flash for all towers */
+      if(effects) effects.push(new MuzzleFlash(muzzlePos,this.def.color,this.group.parent));
     }
   }
   destroy(){

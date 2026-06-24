@@ -103,11 +103,13 @@ export class Enemy {
     this.hpFg.scale.set(1,0.1,1); this.hpFg.position.y=1;
     this.mesh.add(this.hpBg,this.hpFg);
     const p=curve.getPointAt(0);
-    this.mesh.position.copy(p); this.mesh.position.y=0.6;
+    this.mesh.position.copy(p); this.mesh.position.y=8;
+    this._entranceTime=0; this._entranceDur=0.6;
     scene.add(this.mesh); this.curve=curve;
   }
   damage(n){
     this.hp=Math.max(0,this.hp-n);
+    this._frameDmg=(this._frameDmg||0)+n;
     const r=this.hp/this.maxHp;
     this.hpFg.scale.x=Math.max(r,0.001);
     this.hpFg.position.x=-(1-r)*0.5;
@@ -116,6 +118,15 @@ export class Enemy {
   }
   update(dt){
     if(this.dead||this.reached) return;
+    /* Entrance drop animation */
+    if(this._entranceTime<this._entranceDur){
+      this._entranceTime+=dt;
+      const t=Math.min(this._entranceTime/this._entranceDur,1);
+      const ease=t*t;
+      this.mesh.position.y=8+(0.6-8)*ease;
+      this.mesh.rotation.x+=dt*4*(1-t);
+      return;
+    }
     this.pathT+=this.baseSpd*this.speedMul*dt;
     if(this.pathT>=1){this.reached=true; return;}
     const p=this.curve.getPointAt(Math.min(this.pathT,0.999));

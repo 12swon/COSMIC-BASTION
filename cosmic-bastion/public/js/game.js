@@ -7,7 +7,58 @@ import { TOWER_DEFS, ENEMY_DEFS, WAVES, DIFFICULTY, TARGET_MODES, ACHIEVEMENT_DE
 import { SoundSystem } from './sound.js';
 import { Tower } from './tower.js';
 import { Enemy } from './enemy.js';
-import { NovaExplosion, Explosion } from './projectiles.js';
+import { NovaExplosion, Explosion, Debris, MuzzleFlash, FloatingNumber } from './projectiles.js';
+
+/* ---- Tower Preview Renderer (3D preview on button hover) ---- */
+class TowerPreview {
+  constructor(){
+    this.renderer=null; this.scene=null; this.cam=null;
+    this.canvas=null; this.model=null; this.animId=null;
+    this._active=false;
+  }
+  _ensureRenderer(){
+    if(this.renderer) return;
+    this.canvas=document.createElement('canvas');
+    this.canvas.width=140; this.canvas.height=140;
+    this.canvas.className='tower-preview-canvas hidden';
+    this.canvas.style.cssText='position:fixed;z-index:100;pointer-events:none;border:1px solid rgba(0,240,255,0.3);background:rgba(3,3,8,0.95);';
+    document.body.appendChild(this.canvas);
+    this.renderer=new THREE.WebGLRenderer({canvas:this.canvas,antialias:true,alpha:true});
+    this.renderer.setSize(140,140);
+    this.renderer.setClearColor(0x030308,0.95);
+    this.scene=new THREE.Scene();
+    this.scene.add(new THREE.AmbientLight(0x334466,0.8));
+    const dl=new THREE.DirectionalLight(0xffeedd,0.7);
+    dl.position.set(2,4,3); this.scene.add(dl);
+    this.cam=new THREE.PerspectiveCamera(40,1,0.1,50);
+    this.cam.position.set(2.5,2.5,2.5); this.cam.lookAt(0,0.8,0);
+  }
+  show(btn,def){
+    this._ensureRenderer();
+    if(this.model){
+      this.scene.remove(this.model);
+      this.model.traverse(c=>{if(c.geometry)c.geometry.dispose();if(c.material){if(Array.isArray(c.material))c.material.forEach(m=>m.dispose());else c.material.dispose();}});
+    }
+    try{ const t=new Tower(def,new THREE.Vector3(0,0,0),this.scene); this.model=t.group; }
+    catch(e){ console.warn('Tower preview build failed:',e); return; }
+    this._active=true;
+    const rect=btn.getBoundingClientRect();
+    this.canvas.style.left=(rect.right+8)+'px';
+    this.canvas.style.top=rect.top+'px';
+    this.canvas.classList.remove('hidden');
+    if(!this.animId){ const self=this; (function animate(){ self.animId=requestAnimationFrame(animate); if(self.model)self.model.rotation.y+=0.025; self.renderer.render(self.scene,self.cam); })(); }
+  }
+  hide(){
+    this._active=false;
+    if(this.canvas) this.canvas.classList.add('hidden');
+    if(this.animId){cancelAnimationFrame(this.animId);this.animId=null;}
+    if(this.model){
+      this.scene.remove(this.model);
+      this.model.traverse(c=>{if(c.geometry)c.geometry.dispose();if(c.material){if(Array.isArray(c.material))c.material.forEach(m=>m.dispose());else c.material.dispose();}});
+      this.model=null;
+    }
+  }
+}
 
 export class Game {
   constructor(bgScene, gameScene){
@@ -26,9 +77,16 @@ export class Game {
     this.autoWave=false; this.autoWaveTimer=0; this.autoWaveCountdown=5;
     this._waveDmgTaken=false; this._startFromLevel=1;
     this._contextTower=null;
+    /* Combo system */
+    this._comboCount=0; this._comboTimer=0; this._comboMaxTime=1.5;
+    /* Camera drag */
+    this._dragging=false; this._dragX=0; this._dragY=0;
+    /* Follow mode */
+    this._followMode=false;
     this._persistentAchievements=new Set(); this._unlockedLevels=[1,2,3];
     this._loadPersistentData();
     this._cacheUI(); this._buildTowerButtons();
+    this._towerPreview=new TowerPreview();
     this._bindEvents(); this._updateWavePreview();
   }
   reset(){this.credits=200;this.coreHp=100;this.maxHp=100;this.score=0;this.kills=0;this.currentWave=0;this.totalWaves=WAVES.length;}
@@ -40,10 +98,16 @@ export class Game {
   _showTowerMenu(tower){this._hideTowerMenu();this._contextTower=tower;const v=tower.group.position.clone();v.project(this.gs.cam);const x=(v.x*0.5+0.5)*innerWidth;const y=(-v.y*0.5+0.5)*innerHeight;const menu=document.getElementById('tower-context-menu');const mx=x<innerWidth-250?x+60:x-250;const my=Math.max(10,Math.min(y-80,innerHeight-300));menu.style.left=mx+'px';menu.style.top=my+'px';document.getElementById('tcm-name').textContent=tower.def.name;document.getElementById('tcm-level').textContent='Lv.'+tower.level;const dm=tower.getDamage(),rn=tower.getRange().toFixed(1),rt=(1/tower.def.rate).toFixed(1);document.getElementById('tcm-stats').innerHTML=`\u4f24\u5bb3: ${dm} | \u5c04\u7a0b: ${rn} | \u5c04\u901f: ${rt}/s`;const ub=document.getElementById('tcm-upgrade'),ut=document.getElementById('tcm-upgrade-text');if(tower.level>=3){ub.disabled=true;ut.textContent='\u5df2\u6ee1\u7ea7 MAX';}else{const cost=tower.getUpgradeCost();ub.disabled=this.credits<cost;ut.textContent=`\u5347\u7ea7 (${cost} CR)`;}document.getElementById('tcm-sell-text').textContent=`\u51fa\u552e (+${Math.floor(tower.def.cost*0.6)} CR)`;const cm=tower.targetMode||this.targetMode;document.querySelectorAll('.tcm-target-btn').forEach(b=>{b.classList.toggle('active',b.dataset.mode===cm);});menu.classList.remove('hidden');}
   _hideTowerMenu(){document.getElementById('tower-context-menu').classList.add('hidden');this._contextTower=null;}
   _cacheUI(){const $=id=>document.getElementById(id);this.ui={wave:$('hud-wave'),enemies:$('hud-enemies'),credits:$('hud-credits'),hp:$('hud-hp'),score:$('hud-score'),announce:$('wave-announce'),towerInfo:$('tower-info'),towerInfoName:$('tower-info-name'),towerInfoStats:$('tower-info-stats'),towerBtns:$('tower-buttons'),overOverlay:$('gameover-overlay'),vicOverlay:$('victory-overlay'),goWave:$('go-wave'),goKills:$('go-kills'),goScore:$('go-score'),goAch:$('go-ach'),vKills:$('v-kills'),vHp:$('v-hp'),vScore:$('v-score'),vAch:$('v-ach'),pauseOverlay:$('pause-overlay'),speed:$('hud-speed'),wavePreview:$('wave-preview'),targetText:$('target-mode-text'),achPopup:$('achievement-popup'),achTitle:$('ach-title'),achDesc:$('ach-desc')};}
-  _buildTowerButtons(){const c=this.ui.towerBtns;c.innerHTML='';this.towerBtnEls=[];TOWER_DEFS.forEach((d,i)=>{const b=document.createElement('div');b.className='tower-btn';b.dataset.idx=i;const ch='#'+d.color.toString(16).padStart(6,'0');b.innerHTML=`<div class="tower-icon" style="background:${ch}22;border:1px solid ${ch}"><svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="${ch}"/></svg></div><div class="tower-meta"><span class="tower-name">${d.name}</span><span class="tower-cost">${d.cost} CR</span></div>`;b.addEventListener('click',()=>this._selectTower(i));c.appendChild(b);this.towerBtnEls.push(b);});}
+  _buildTowerButtons(){const c=this.ui.towerBtns;c.innerHTML='';this.towerBtnEls=[];TOWER_DEFS.forEach((d,i)=>{const b=document.createElement('div');b.className='tower-btn';b.dataset.idx=i;const ch='#'+d.color.toString(16).padStart(6,'0');b.innerHTML=`<div class="tower-icon" style="background:${ch}22;border:1px solid ${ch}"><svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="${ch}"/></svg></div><div class="tower-meta"><span class="tower-name">${d.name}</span><span class="tower-cost">${d.cost} CR</span></div>`;b.addEventListener('click',()=>this._selectTower(i));b.addEventListener('mouseenter',()=>{if(this._towerPreview)this._towerPreview.show(b,TOWER_DEFS[i]);});b.addEventListener('mouseleave',()=>{if(this._towerPreview)this._towerPreview.hide();});c.appendChild(b);this.towerBtnEls.push(b);});}
   _makeHighlight(){const m=new THREE.Mesh(new THREE.CylinderGeometry(1.35,1.55,0.5,6),new THREE.MeshBasicMaterial({color:0x00ff88,transparent:true,opacity:0,blending:THREE.AdditiveBlending}));m.position.y=0.05;return m;}
   _bindEvents(){
     const cvs=this.gs.canvas;cvs.addEventListener('mousemove',e=>this._onMouseMove(e));cvs.addEventListener('click',e=>this._onClick(e));cvs.addEventListener('contextmenu',e=>{e.preventDefault();this._cancelSelect();});window.addEventListener('keydown',e=>this._onKey(e));
+    /* Camera: scroll zoom */
+    cvs.addEventListener('wheel',e=>{e.preventDefault();this.gs.zoom(e.deltaY>0?1:-1);},{passive:false});
+    /* Camera: right-click drag pan */
+    cvs.addEventListener('mousedown',e=>{if(e.button===2){this._dragging=true;this._dragX=e.clientX;this._dragY=e.clientY;}});
+    window.addEventListener('mouseup',e=>{if(e.button===2) this._dragging=false;});
+    cvs.addEventListener('mousemove',e=>{if(this._dragging){this.gs.pan(e.clientX-this._dragX,e.clientY-this._dragY);this._dragX=e.clientX;this._dragY=e.clientY;}});
     const bindBtn=(id,fn)=>{const el=document.getElementById(id);if(el)el.addEventListener('click',e=>{e.stopPropagation();fn();});};
     bindBtn('btn-next-wave',()=>this._startWave());bindBtn('btn-sell-mode',()=>this._toggleSell());bindBtn('btn-restart',()=>this._restart());bindBtn('btn-restart-v',()=>this._restart());bindBtn('btn-menu',()=>this._toMenu());bindBtn('btn-menu-v',()=>this._toMenu());bindBtn('btn-submit-score',()=>this._submitScore('go-name'));bindBtn('btn-submit-score-v',()=>this._submitScore('v-name'));bindBtn('btn-resume',()=>this._togglePause());bindBtn('btn-pause-menu',()=>{this._togglePause();this._toMenu();});
     ['gameover-overlay','victory-overlay','pause-overlay'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('click',e=>e.stopPropagation());});
@@ -86,11 +150,22 @@ export class Game {
       if(e.key===' '){e.preventDefault();this._startWave();}
       if(e.key==='s'||e.key==='S') this._toggleSell();
       if(e.key==='Escape'){this._cancelSelect();this._hideTowerMenu();}
-      if(e.key==='q'||e.key==='Q'){this.gs.cam.position.applyAxisAngle(new THREE.Vector3(0,1,0),0.15);this.gs.cam.lookAt(0,0,2);}
-      if(e.key==='e'||e.key==='E'){this.gs.cam.position.applyAxisAngle(new THREE.Vector3(0,1,0),-0.15);this.gs.cam.lookAt(0,0,2);}
+      if(e.key==='q'||e.key==='Q'){this.gs.rotate(0.15);}
+      if(e.key==='e'||e.key==='E'){this.gs.rotate(-0.15);}
       if(e.key==='p'||e.key==='P') this._togglePause();
       if(e.key==='+'||e.key==='='){this.gameSpeed=Math.min(3,this.gameSpeed+1);this._updateSpeedDisplay();}
       if(e.key==='-'||e.key==='_'){this.gameSpeed=Math.max(1,this.gameSpeed-1);this._updateSpeedDisplay();}
+      if(e.key==='f'||e.key==='F'){
+        this._followMode=!this._followMode;
+        const ind=document.getElementById('follow-indicator');
+        if(this._followMode&&this.projectiles.length>0){
+          this.gs.follow(this.projectiles[this.projectiles.length-1]);
+          if(ind){ind.classList.remove('hidden');}
+        } else {
+          this.gs.unfollow(); this._followMode=false;
+          if(ind){ind.classList.add('hidden');}
+        }
+      }
       if(e.key==='t'||e.key==='T'){this.targetModeIdx=(this.targetModeIdx+1)%TARGET_MODES.length;this.targetMode=TARGET_MODES[this.targetModeIdx];this.ui.targetText.textContent=this.targetMode;}
       if(e.key==='a'||e.key==='A'){
         this.autoWave=!this.autoWave; this.autoWaveTimer=this.autoWaveCountdown;
@@ -186,7 +261,9 @@ export class Game {
       setTimeout(()=>storyEl.classList.add('hidden'),5000);
     }
     if(this.ui.wavePreview) this.ui.wavePreview.classList.add('hidden');
-    this.gs.cam.position.set(0,38,26); this.gs.cam.lookAt(0,0,2);
+    /* Cinematic camera: start wide/high, animate to gameplay position */
+    this.gs.camDist=60; this.gs.camPolar=0.6;
+    this.gs.animateTo(44,0.95,this.gs.camTarget,1.5);
     this._updateHUD();
   }
   _spawnEnemy(type){const e=new Enemy(type,this.gs.path.curve,this.gs.scene,this.diffMul);this.enemies.push(e);}
@@ -213,6 +290,7 @@ export class Game {
     if(this.ui.pauseOverlay) this.ui.pauseOverlay.classList.add('hidden');
     if(this.ui.achPopup) this.ui.achPopup.classList.add('hidden');
     this._hideTowerMenu();
+    if(this._towerPreview) this._towerPreview.hide();
     const autoInd=document.getElementById('auto-wave-indicator');
     if(autoInd) autoInd.classList.add('hidden');
     this.gs.show();
@@ -259,6 +337,9 @@ export class Game {
     for(const f of this.effects) f.destroy();
     this.towers=[]; this.enemies=[]; this.projectiles=[]; this.effects=[];
     this.spawnQueue=[]; this.waveActive=false; this._cancelSelect();
+    this._comboCount=0; this._comboTimer=0;
+    clearTimeout(this._comboTimeout);
+    const cd=document.getElementById('combo-display'); if(cd) cd.classList.add('hidden');
   }
   async _submitScore(inputId){
     const name=document.getElementById(inputId).value.trim()||'Unknown';
@@ -284,9 +365,16 @@ export class Game {
       if(this.spawnTimer<=0){const s=this.spawnQueue.shift();this._spawnEnemy(s.type);this.spawnTimer=s.delay;}
     }
     for(const e of this.enemies) e.speedMul=1;
-    for(const t of this.towers) t.update(dt,this.enemies,this.projectiles,this.targetMode,this.sound);
+    for(const t of this.towers) t.update(dt,this.enemies,this.projectiles,this.targetMode,this.sound,this.effects);
     for(const e of this.enemies) e.update(dt);
     for(const p of this.projectiles) p.update(dt);
+    /* Collect damage numbers from enemies hit this frame */
+    for(const e of this.enemies){
+      if(e._frameDmg>0){
+        this.effects.push(new FloatingNumber(e.mesh.position.clone(),e._frameDmg,'#ffaa00',this.gs.cam));
+        e._frameDmg=0;
+      }
+    }
     for(const f of this.effects){if(f instanceof NovaExplosion) f.update(dt,this.enemies);else f.update(dt);}
     /* Process dead/reached */
     for(const e of this.enemies){
@@ -294,6 +382,22 @@ export class Game {
         e._processed=true; this.credits+=e.reward; this.totalCreditsEarned+=e.reward;
         this.score+=e.reward*2; this.kills++; this.sound.play('hit');
         this.effects.push(new Explosion(e.mesh.position.clone(),ENEMY_DEFS[e.type].color,this.gs.scene));
+        this.effects.push(new Debris(e.mesh.position.clone(),ENEMY_DEFS[e.type].color,this.gs.scene));
+        /* Combo kill system */
+        this._comboCount++;
+        this._comboTimer=this._comboMaxTime;
+        if(this._comboCount>=3){
+          const mul=1+Math.min(this._comboCount-3,7)*0.2;
+          const bonus=Math.round(e.reward*2*mul);
+          this.score+=bonus;
+          const cd=document.getElementById('combo-display');
+          const cc=document.getElementById('combo-count');
+          if(cd&&cc){
+            cd.classList.remove('hidden');
+            cc.textContent=this._comboCount+'x';
+            cd.style.animation='none'; cd.offsetHeight; cd.style.animation='';
+          }
+        }
         if(this.kills===1) this._checkAchievement('first_blood');
         if(this.kills>=50) this._checkAchievement('kill_50');
         if(this.kills>=100) this._checkAchievement('kill_100');
@@ -307,6 +411,21 @@ export class Game {
     this.enemies=this.enemies.filter(e=>{if((e.dead||e.reached)&&e._processed){e.destroy();return false;}return true;});
     this.projectiles=this.projectiles.filter(p=>{if(p.dead){p.destroy();return false;}return true;});
     this.effects=this.effects.filter(f=>{if(f.dead){f.destroy();return false;}return true;});
+    /* Combo timer countdown */
+    if(this._comboCount>0){
+      this._comboTimer-=dt;
+      if(this._comboTimer<=0){
+        this._comboCount=0;
+        const cd=document.getElementById('combo-display');
+        if(cd) cd.classList.add('hidden');
+      }
+    }
+    /* Follow mode sync: hide indicator if target was auto-cleared */
+    if(this._followMode&&!this.gs._followTarget){
+      this._followMode=false;
+      const ind=document.getElementById('follow-indicator');
+      if(ind) ind.classList.add('hidden');
+    }
     /* Wave complete */
     if(this.waveActive&&this.spawnQueue.length===0&&this.enemies.length===0){
       this.waveActive=false; this._savePersistentData();
