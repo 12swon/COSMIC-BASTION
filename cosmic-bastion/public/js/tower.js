@@ -95,6 +95,37 @@ export class Tower {
         acc.position.y=3.25; this.group.add(acc); this._animParts.accumulator=acc;
         break;
       }
+      case 'frost': {
+        const crystal=new THREE.Mesh(new THREE.ConeGeometry(0.3,1.6,6),bodyM);
+        crystal.position.y=1.3; this.group.add(crystal);
+        this._animParts.shards=[];
+        for(let i=0;i<4;i++){
+          const a=(i/4)*Math.PI*2;
+          const shard=new THREE.Mesh(new THREE.ConeGeometry(0.08,0.5,4),bodyM);
+          shard.position.set(Math.cos(a)*0.4,1.0,Math.sin(a)*0.4);
+          shard.rotation.z=Math.PI/2; shard.rotation.y=-a;
+          this.group.add(shard); this._animParts.shards.push(shard);
+        }
+        const aura=new THREE.Mesh(new THREE.SphereGeometry(0.35,12,12),
+          new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:0.25,blending:THREE.AdditiveBlending,depthWrite:false}));
+        aura.position.y=1.3; this.group.add(aura); this._animParts.aura=aura;
+        break;
+      }
+      case 'arc': {
+        const tower=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.3,2.0,8),bodyM);
+        tower.position.y=1.4; this.group.add(tower);
+        this._animParts.coils=[];
+        for(let i=0;i<4;i++){
+          const coil=new THREE.Mesh(new THREE.TorusGeometry(0.22,0.03,6,16),
+            new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:0.6,metalness:0.9,roughness:0.2}));
+          coil.position.y=0.8+i*0.4; coil.rotation.x=Math.PI/2;
+          this.group.add(coil); this._animParts.coils.push(coil);
+        }
+        const top=new THREE.Mesh(new THREE.SphereGeometry(0.22,12,12),
+          new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:0.7,blending:THREE.AdditiveBlending}));
+        top.position.y=2.5; this.group.add(top); this._animParts.topOrb=top;
+        break;
+      }
     }
     const ring=new THREE.Mesh(new THREE.TorusGeometry(0.75,0.04,8,24),
       new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:0.35}));
@@ -162,6 +193,14 @@ export class Tower {
         if(ap.crowns) ap.crowns.forEach((c,i)=>{ c.scale.y=1+Math.sin(t*2+i*2.1)*0.2; });
         if(ap.accumulator) ap.accumulator.scale.setScalar(1+Math.sin(t*2.5)*0.25);
         break;
+      case 'frost':
+        if(ap.shards) ap.shards.forEach((s,i)=>{ s.rotation.y+=dt*(1.5+i*0.3); });
+        if(ap.aura) ap.aura.scale.setScalar(1+Math.sin(t*2)*0.15);
+        break;
+      case 'arc':
+        if(ap.coils) ap.coils.forEach((c,i)=>{ c.rotation.z=t*(2+i*0.5); });
+        if(ap.topOrb) ap.topOrb.scale.setScalar(1+Math.sin(t*5)*0.2);
+        break;
     }
     if(ap.accentRing) ap.accentRing.rotation.z+=dt*0.8;
     const range=this.getRange(), dmg=this.getDamage();
@@ -200,6 +239,29 @@ export class Tower {
           if(!e.dead && e.mesh.position.distanceTo(this.group.position)<range){
             projectiles.push(new Projectile(muzzlePos,e,dmg,0x8844ff,6,this.group.parent));
           }
+        }
+      } else if(this.def.id==='frost'){
+        /* Frost: shoot at primary target + slow all in range */
+        muzzlePos.y=1.3;
+        projectiles.push(new Projectile(muzzlePos,this.target,dmg,this.def.color,7,this.group.parent));
+        if(effects) effects.push(new GravityPulse(this.group.position.clone(),range,this.group.parent));
+      } else if(this.def.id==='arc'){
+        /* Arc: chain lightning to up to N targets */
+        muzzlePos.y=2.5;
+        const chain=this.def.chain||3;
+        let current=this.target;
+        const hit=new Set();
+        for(let i=0;i<chain&&current&&!current.dead;i++){
+          projectiles.push(new Projectile(muzzlePos.clone(),current,dmg*(1-i*0.2),this.def.color,12,this.group.parent));
+          hit.add(current);
+          /* Find nearest unhit enemy to current */
+          let next=null,nextD=3.0;
+          for(const e of enemies){
+            if(e.dead||hit.has(e)) continue;
+            const d=e.mesh.position.distanceTo(current.mesh.position);
+            if(d<nextD){nextD=d;next=e;}
+          }
+          current=next;
         }
       } else {
         muzzlePos.y=1.8;

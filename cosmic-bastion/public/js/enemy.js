@@ -96,11 +96,82 @@ export class Enemy {
         this.mesh.add(new THREE.Mesh(cg,new THREE.MeshBasicMaterial({color:d.color,wireframe:true,transparent:true,opacity:0.25})));
         break;
       }
+      case 'interceptor': {
+        /* Sleek arrow-shaped interceptor with wings */
+        const v=new Float32Array([
+          0,0,0.7, -0.35,0,-0.2, 0.35,0,-0.2,
+          0,0.15,0.5, -0.25,0.15,-0.1, 0.25,0.15,-0.1,
+          0,0,0.7, 0,0.15,0.5, -0.35,0,-0.2,
+          0,0,0.7, 0.25,0.15,-0.1, 0.35,0,-0.2,
+          -0.35,0,-0.2, 0,0.15,0.5, -0.25,0.15,-0.1,
+          0.35,0,-0.2, 0.25,0.15,-0.1, -0.25,0.15,-0.1,
+          -0.35,0,-0.2, -0.7,0,-0.35, -0.25,0.1,-0.1,
+          0.35,0,-0.2, 0.7,0,-0.35, 0.25,0.1,-0.1,
+        ]);
+        const geo=new THREE.BufferGeometry();
+        geo.setAttribute('position',new THREE.BufferAttribute(v,3));
+        geo.computeVertexNormals();
+        this.mesh=new THREE.Mesh(geo,mat);
+        /* Engine glow */
+        const eg=new THREE.Mesh(new THREE.SphereGeometry(0.12,8,8),
+          new THREE.MeshBasicMaterial({color:0xff4400,transparent:true,opacity:0.8,blending:THREE.AdditiveBlending}));
+        eg.position.set(0,0.05,-0.3); this.mesh.add(eg);
+        /* Shield bubble */
+        const sh=new THREE.Mesh(new THREE.SphereGeometry(0.6,12,12),
+          new THREE.MeshBasicMaterial({color:d.color,transparent:true,opacity:0.08,blending:THREE.AdditiveBlending,depthWrite:false}));
+        sh.position.y=0.1; this.mesh.add(sh);
+        break;
+      }
+      case 'drone': {
+        /* Small hexagonal drone */
+        const geo=new THREE.OctahedronGeometry(0.22,0);
+        this.mesh=new THREE.Mesh(geo,mat);
+        /* Outer ring */
+        const ring=new THREE.Mesh(new THREE.TorusGeometry(0.3,0.02,6,12),
+          new THREE.MeshBasicMaterial({color:d.color,transparent:true,opacity:0.4}));
+        ring.rotation.x=Math.PI/2; this.mesh.add(ring);
+        /* Core glow */
+        const cg=new THREE.Mesh(new THREE.SphereGeometry(0.1,6,6),
+          new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.6,blending:THREE.AdditiveBlending}));
+        this.mesh.add(cg);
+        break;
+      }
+      case 'fortress': {
+        /* Massive hexagonal fortress with rotating sections */
+        const geo=new THREE.CylinderGeometry(0.9,1.1,0.6,6);
+        this.mesh=new THREE.Mesh(geo,mat);
+        /* Upper section */
+        const upper=new THREE.Mesh(new THREE.CylinderGeometry(0.6,0.9,0.4,6),mat);
+        upper.position.y=0.45; this.mesh.add(upper);
+        /* Central spire */
+        const spire=new THREE.Mesh(new THREE.ConeGeometry(0.3,0.8,6),mat);
+        spire.position.y=0.95; this.mesh.add(spire);
+        /* 6 cannon turrets around perimeter */
+        const tm=new THREE.MeshStandardMaterial({color:0x441122,emissive:0x660033,emissiveIntensity:0.4,metalness:0.9,roughness:0.3});
+        for(let i=0;i<6;i++){
+          const a=(i/6)*Math.PI*2;
+          const turret=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.1,0.25,6),tm);
+          turret.position.set(Math.cos(a)*0.85,0.2,Math.sin(a)*0.85);
+          turret.rotation.z=Math.PI/2; turret.rotation.y=-a;
+          this.mesh.add(turret);
+          const tip=new THREE.Mesh(new THREE.SphereGeometry(0.06,6,6),
+            new THREE.MeshBasicMaterial({color:0xff3344,transparent:true,opacity:0.7,blending:THREE.AdditiveBlending}));
+          tip.position.set(Math.cos(a)*1.0,0.2,Math.sin(a)*1.0);
+          this.mesh.add(tip);
+        }
+        /* Shield dome */
+        this.mesh.add(new THREE.Mesh(new THREE.SphereGeometry(1.3,12,12),
+          new THREE.MeshBasicMaterial({color:d.color,transparent:true,opacity:0.06,blending:THREE.AdditiveBlending,depthWrite:false})));
+        /* Wireframe overlay */
+        this.mesh.add(new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:d.color,wireframe:true,transparent:true,opacity:0.15})));
+        break;
+      }
     }
     this.hpBg=new THREE.Sprite(new THREE.SpriteMaterial({color:0x330000}));
-    this.hpBg.scale.set(1,0.1,1); this.hpBg.position.y=1;
+    const hpY = type==='fortress'?1.8 : type==='titan'?1.3 : 1;
+    this.hpBg.scale.set(type==='fortress'?1.6:1,0.1,1); this.hpBg.position.y=hpY;
     this.hpFg=new THREE.Sprite(new THREE.SpriteMaterial({color:0x00ff66}));
-    this.hpFg.scale.set(1,0.1,1); this.hpFg.position.y=1;
+    this.hpFg.scale.set(type==='fortress'?1.6:1,0.1,1); this.hpFg.position.y=hpY;
     this.mesh.add(this.hpBg,this.hpFg);
     const p=curve.getPointAt(0);
     this.mesh.position.copy(p); this.mesh.position.y=8;

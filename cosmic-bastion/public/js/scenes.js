@@ -84,11 +84,11 @@ export class GameScene {
     const cvs=this.renderer.domElement;
     cvs.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;display:none;pointer-events:none;';
     document.body.appendChild(cvs); this.canvas=cvs;
-    this.scene.add(new THREE.AmbientLight(0x334466,0.7));
-    const sun=new THREE.DirectionalLight(0xffeedd,0.6);
-    sun.position.set(10,30,15); this.scene.add(sun);
-    const core=new THREE.PointLight(0x00f0ff,1.5,50);
-    core.position.set(-9,3,18); this.scene.add(core);
+    this.ambient=new THREE.AmbientLight(0x334466,0.7); this.scene.add(this.ambient);
+    this.sun=new THREE.DirectionalLight(0xffeedd,0.6);
+    this.sun.position.set(10,30,15); this.scene.add(this.sun);
+    this.coreLight=new THREE.PointLight(0x00f0ff,1.5,50);
+    this.coreLight.position.set(-9,3,18); this.scene.add(this.coreLight);
     this._buildStars(); this.path = this._buildPath();
     this.platforms = this._buildPlatforms();
     this._buildCore(); this._buildGrid();
@@ -115,12 +115,17 @@ export class GameScene {
     const pts=curve.getPoints(400);
     const tubeG=new THREE.TubeGeometry(curve,200,0.35,8,false);
     const tubeM=new THREE.MeshBasicMaterial({color:0x00f0ff,transparent:true,opacity:0.35,blending:THREE.AdditiveBlending});
+    this.pathMat=tubeM;
     this.scene.add(new THREE.Mesh(tubeG,tubeM));
     const tube2G=new THREE.TubeGeometry(curve,200,0.12,6,false);
     const tube2M=new THREE.MeshBasicMaterial({color:0x88ffff,transparent:true,opacity:0.7});
+    this.pathInnerMat=tube2M;
     this.scene.add(new THREE.Mesh(tube2G,tube2M));
+    this.pathMarkerMats=[];
     for(let i=0;i<pts.length;i+=20){
-      const s=new THREE.Mesh(new THREE.SphereGeometry(0.15,6,6),new THREE.MeshBasicMaterial({color:0x00ffff,transparent:true,opacity:0.5}));
+      const m=new THREE.MeshBasicMaterial({color:0x00ffff,transparent:true,opacity:0.5});
+      this.pathMarkerMats.push(m);
+      const s=new THREE.Mesh(new THREE.SphereGeometry(0.15,6,6),m);
       s.position.copy(pts[i]); s.position.y+=0.2; this.scene.add(s);
     }
     return {curve, points:pts};
@@ -147,12 +152,12 @@ export class GameScene {
     this.coreGlow=glow;
   }
   _buildGrid(){
-    const gridMat=new THREE.LineBasicMaterial({color:0x111133,transparent:true,opacity:0.25});
+    this.gridMat=new THREE.LineBasicMaterial({color:0x111133,transparent:true,opacity:0.25});
     for(let i=-25;i<=25;i+=5){
       const pts1=[new THREE.Vector3(i,-0.3,-25),new THREE.Vector3(i,-0.3,25)];
       const pts2=[new THREE.Vector3(-25,-0.3,i),new THREE.Vector3(25,-0.3,i)];
-      this.scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts1),gridMat));
-      this.scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts2),gridMat));
+      this.scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts1),this.gridMat));
+      this.scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts2),this.gridMat));
     }
   }
   /* BUG FIX: enable pointer-events when game canvas is shown */
@@ -204,6 +209,40 @@ export class GameScene {
       fromTarget:this.camTarget.clone(), toTarget:target.clone(),
       dur:dur, t:0, _lastT:performance.now()*0.001
     };
+  }
+  /* Apply wave-based visual theme to the scene */
+  applyTheme(theme) {
+    if (!theme) return;
+    /* Fog + background clear color */
+    if (this.scene.fog) {
+      this.scene.fog.color.setHex(theme.fogColor);
+      this.scene.fog.density = theme.fogDensity;
+    }
+    this.renderer.setClearColor(theme.bgColor);
+    /* Path tube materials */
+    if (this.pathMat) this.pathMat.color.setHex(theme.pathColor);
+    if (this.pathInnerMat) this.pathInnerMat.color.setHex(theme.pathInner);
+    if (this.pathMarkerMats) for (const m of this.pathMarkerMats) m.color.setHex(theme.pathInner);
+    /* Grid */
+    if (this.gridMat) this.gridMat.color.setHex(theme.gridColor);
+    /* Lighting */
+    if (this.ambient) { this.ambient.color.setHex(theme.ambientColor); this.ambient.intensity = theme.ambientIntensity; }
+    if (this.sun) { this.sun.color.setHex(theme.sunColor); this.sun.intensity = theme.sunIntensity; }
+    if (this.coreLight) this.coreLight.color.setHex(theme.coreColor);
+    /* Core mesh + glow */
+    if (this.coreMesh) {
+      this.coreMesh.material.color.setHex(theme.coreColor);
+      const emCol = new THREE.Color(theme.coreColor).multiplyScalar(0.35);
+      this.coreMesh.material.emissive.copy(emCol);
+    }
+    if (this.coreGlow) this.coreGlow.material.color.setHex(theme.coreColor);
+    /* Platform ring colors */
+    if (this.platforms) {
+      for (const p of this.platforms) {
+        const ring = p.mesh.children[0];
+        if (ring && ring.material) ring.material.color.setHex(theme.pathColor);
+      }
+    }
   }
   render(){
     this.updateCamera();

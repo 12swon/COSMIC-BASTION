@@ -64,6 +64,7 @@ html, body {
 
 .start-content {
   text-align: center;
+  position: relative;
   animation: fadeSlideUp 1.2s ease-out both;
 }
 
@@ -85,7 +86,7 @@ html, body {
 
 .title-cosmic {
   font-family: var(--font-display);
-  font-size: clamp(3rem, 8vw, 6rem);
+  font-size: clamp(2.5rem, 7vw, 5rem);
   font-weight: 900;
   letter-spacing: 0.25em;
   background: linear-gradient(135deg, var(--cyan), #ffffff 40%, var(--magenta));
@@ -117,20 +118,20 @@ html, body {
 
 /* Menu Buttons */
 .menu-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-top: 50px;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 20px;
+  max-width: 640px;
 }
 
 .menu-btn {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 2px;
-  padding: 16px 48px;
-  min-width: 280px;
+  gap: 10px;
+  padding: 10px 20px;
+  min-width: auto;
   background: transparent;
   border: 1px solid var(--border-glow);
   color: #c8d4e8;
@@ -167,25 +168,26 @@ html, body {
 }
 
 .btn-icon {
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: var(--cyan);
-  margin-bottom: 2px;
+  flex-shrink: 0;
 }
 .btn-text {
   font-family: var(--font-body);
-  font-size: 1.15rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
 }
 .btn-sub {
   font-family: var(--font-mono);
-  font-size: 0.65rem;
-  color: rgba(0, 240, 255, 0.5);
-  letter-spacing: 3px;
+  font-size: 0.55rem;
+  color: rgba(0, 240, 255, 0.4);
+  letter-spacing: 2px;
+  margin-left: auto;
 }
 
 .start-footer {
-  margin-top: 60px;
+  margin-top: 20px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -389,6 +391,7 @@ html, body {
   cursor: pointer;
   transition: all 0.25s;
   min-width: 160px;
+  position: relative;
 }
 .tower-btn:hover {
   border-color: var(--cyan);
@@ -1157,3 +1160,245 @@ html, body {
   box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
 }
 .tower-preview-canvas.hidden { display: none; }
+
+/* ==========================================
+   v4.0 VISUAL POLISH
+   ========================================== */
+
+/* Scanline overlay for sci-fi atmosphere */
+#start-screen::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 240, 255, 0.012) 2px,
+    rgba(0, 240, 255, 0.012) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Animated corner decorations on start content */
+.start-content::before,
+.start-content::after {
+  content: '';
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  pointer-events: none;
+}
+.start-content::before {
+  top: -20px; left: -40px;
+  border-top: 2px solid var(--cyan);
+  border-left: 2px solid var(--cyan);
+  opacity: 0.5;
+}
+.start-content::after {
+  bottom: -20px; right: -40px;
+  border-bottom: 2px solid var(--cyan);
+  border-right: 2px solid var(--cyan);
+  opacity: 0.5;
+}
+
+/* Menu button shimmer + hotkey badge */
+.menu-btn .btn-hotkey {
+  position: absolute;
+  top: 4px; right: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  color: rgba(0, 240, 255, 0.25);
+  pointer-events: none;
+}
+
+/* Enhanced primary button with pulsing border */
+.menu-btn.primary {
+  animation: primaryPulse 2s ease-in-out infinite;
+}
+@keyframes primaryPulse {
+  0%, 100% {
+    border-color: var(--cyan);
+    box-shadow: 0 0 12px rgba(0, 240, 255, 0.1);
+  }
+  50% {
+    border-color: var(--cyan);
+    box-shadow: 0 0 25px rgba(0, 240, 255, 0.25);
+  }
+}
+
+/* Tower button hotkey badge */
+.tower-btn .tower-hotkey {
+  position: absolute;
+  top: 2px; right: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  color: rgba(0, 240, 255, 0.3);
+  pointer-events: none;
+}
+
+/* Glowing animated border for selected tower button */
+.tower-btn.selected {
+  animation: selectedGlow 1.5s ease-in-out infinite;
+}
+@keyframes selectedGlow {
+  0%, 100% { box-shadow: 0 0 15px rgba(0, 240, 255, 0.2); }
+  50% { box-shadow: 0 0 25px rgba(0, 240, 255, 0.35); }
+}
+
+/* Panel inner glow ring */
+.panel-inner {
+  position: relative;
+}
+.panel-inner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at top, rgba(0, 240, 255, 0.04), transparent 70%);
+}
+
+/* Wave announce enhanced effect */
+.wave-announce {
+  position: relative;
+}
+.wave-announce::before,
+.wave-announce::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 30px;
+  height: 1px;
+  background: var(--red);
+  opacity: 0.4;
+}
+.wave-announce::before { left: -40px; }
+.wave-announce::after { right: -40px; }
+
+/* HUD value glow */
+.hud-value {
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.4), 0 0 16px rgba(0, 240, 255, 0.15);
+}
+
+/* HUD item subtle hover */
+.hud-item {
+  transition: filter 0.3s;
+}
+.hud-item:hover {
+  filter: brightness(1.3);
+}
+
+/* Bottom bar wave button enhanced */
+.wave-btn {
+  position: relative;
+  overflow: hidden;
+}
+.wave-btn::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.08), transparent);
+  transition: left 0.6s ease;
+}
+.wave-btn:hover::after { left: 100%; }
+
+/* Story narration glow */
+.story-narration {
+  position: relative;
+}
+.story-narration::before {
+  content: '◆';
+  margin-right: 8px;
+  color: var(--gold);
+  opacity: 0.6;
+}
+
+/* Difficulty buttons enhanced */
+.diff-btn {
+  position: relative;
+  overflow: hidden;
+}
+.diff-btn::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+  transition: left 0.4s ease;
+}
+.diff-btn:hover::after { left: 100%; }
+
+/* Core HP bar color when low */
+.hud-value {
+  transition: color 0.3s;
+}
+
+/* Overlay panel entrance animation */
+.overlay-panel .panel-inner {
+  animation: panelSlideIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes panelSlideIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Game over/victory titles with glitch feel */
+.gameover-title, .victory-title {
+  animation: titleGlitch 3s ease-in-out infinite;
+}
+@keyframes titleGlitch {
+  0%, 92%, 100% { transform: translateX(0); filter: none; }
+  93% { transform: translateX(-2px); filter: hue-rotate(20deg); }
+  94% { transform: translateX(2px); }
+  95% { transform: translateX(-1px); filter: hue-rotate(-20deg); }
+  96% { transform: translateX(0); }
+}
+
+/* Achievement unlocked shimmer */
+.achievement-item.unlocked {
+  position: relative;
+  overflow: hidden;
+}
+.achievement-item.unlocked::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 170, 0, 0.06), transparent);
+  animation: achShimmer 3s ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes achShimmer {
+  0% { left: -100%; }
+  50%, 100% { left: 200%; }
+}
+
+/* Level card hover decorations */
+.level-card:not(.locked)::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 3px; height: 0;
+  background: var(--cyan);
+  transition: height 0.3s ease;
+}
+.level-card:not(.locked):hover::before {
+  height: 100%;
+}
+
+/* Floating animation for title elements */
+.subtitle-top {
+  animation: subtitleFloat 4s ease-in-out infinite;
+}
+@keyframes subtitleFloat {
+  0%, 100% { transform: translateY(0); opacity: 0.7; }
+  50% { transform: translateY(-3px); opacity: 0.9; }
+}
+
+/* Glow pulse for start footer */
+.start-footer .blink {
+  text-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+}

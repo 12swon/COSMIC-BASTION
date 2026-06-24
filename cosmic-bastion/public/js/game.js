@@ -3,7 +3,7 @@
 // State machine, waves, UI, achievements
 // =============================================
 import * as THREE from 'three';
-import { TOWER_DEFS, ENEMY_DEFS, WAVES, DIFFICULTY, TARGET_MODES, ACHIEVEMENT_DEFS, WAVE_STORIES } from './constants.js';
+import { TOWER_DEFS, ENEMY_DEFS, WAVES, DIFFICULTY, TARGET_MODES, ACHIEVEMENT_DEFS, WAVE_STORIES, getWaveTheme } from './constants.js';
 import { SoundSystem } from './sound.js';
 import { Tower } from './tower.js';
 import { Enemy } from './enemy.js';
@@ -98,7 +98,7 @@ export class Game {
   _showTowerMenu(tower){this._hideTowerMenu();this._contextTower=tower;const v=tower.group.position.clone();v.project(this.gs.cam);const x=(v.x*0.5+0.5)*innerWidth;const y=(-v.y*0.5+0.5)*innerHeight;const menu=document.getElementById('tower-context-menu');const mx=x<innerWidth-250?x+60:x-250;const my=Math.max(10,Math.min(y-80,innerHeight-300));menu.style.left=mx+'px';menu.style.top=my+'px';document.getElementById('tcm-name').textContent=tower.def.name;document.getElementById('tcm-level').textContent='Lv.'+tower.level;const dm=tower.getDamage(),rn=tower.getRange().toFixed(1),rt=(1/tower.def.rate).toFixed(1);document.getElementById('tcm-stats').innerHTML=`\u4f24\u5bb3: ${dm} | \u5c04\u7a0b: ${rn} | \u5c04\u901f: ${rt}/s`;const ub=document.getElementById('tcm-upgrade'),ut=document.getElementById('tcm-upgrade-text');if(tower.level>=3){ub.disabled=true;ut.textContent='\u5df2\u6ee1\u7ea7 MAX';}else{const cost=tower.getUpgradeCost();ub.disabled=this.credits<cost;ut.textContent=`\u5347\u7ea7 (${cost} CR)`;}document.getElementById('tcm-sell-text').textContent=`\u51fa\u552e (+${Math.floor(tower.def.cost*0.6)} CR)`;const cm=tower.targetMode||this.targetMode;document.querySelectorAll('.tcm-target-btn').forEach(b=>{b.classList.toggle('active',b.dataset.mode===cm);});menu.classList.remove('hidden');}
   _hideTowerMenu(){document.getElementById('tower-context-menu').classList.add('hidden');this._contextTower=null;}
   _cacheUI(){const $=id=>document.getElementById(id);this.ui={wave:$('hud-wave'),enemies:$('hud-enemies'),credits:$('hud-credits'),hp:$('hud-hp'),score:$('hud-score'),announce:$('wave-announce'),towerInfo:$('tower-info'),towerInfoName:$('tower-info-name'),towerInfoStats:$('tower-info-stats'),towerBtns:$('tower-buttons'),overOverlay:$('gameover-overlay'),vicOverlay:$('victory-overlay'),goWave:$('go-wave'),goKills:$('go-kills'),goScore:$('go-score'),goAch:$('go-ach'),vKills:$('v-kills'),vHp:$('v-hp'),vScore:$('v-score'),vAch:$('v-ach'),pauseOverlay:$('pause-overlay'),speed:$('hud-speed'),wavePreview:$('wave-preview'),targetText:$('target-mode-text'),achPopup:$('achievement-popup'),achTitle:$('ach-title'),achDesc:$('ach-desc')};}
-  _buildTowerButtons(){const c=this.ui.towerBtns;c.innerHTML='';this.towerBtnEls=[];TOWER_DEFS.forEach((d,i)=>{const b=document.createElement('div');b.className='tower-btn';b.dataset.idx=i;const ch='#'+d.color.toString(16).padStart(6,'0');b.innerHTML=`<div class="tower-icon" style="background:${ch}22;border:1px solid ${ch}"><svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="${ch}"/></svg></div><div class="tower-meta"><span class="tower-name">${d.name}</span><span class="tower-cost">${d.cost} CR</span></div>`;b.addEventListener('click',()=>this._selectTower(i));b.addEventListener('mouseenter',()=>{if(this._towerPreview)this._towerPreview.show(b,TOWER_DEFS[i]);});b.addEventListener('mouseleave',()=>{if(this._towerPreview)this._towerPreview.hide();});c.appendChild(b);this.towerBtnEls.push(b);});}
+  _buildTowerButtons(){const c=this.ui.towerBtns;c.innerHTML='';this.towerBtnEls=[];TOWER_DEFS.forEach((d,i)=>{const b=document.createElement('div');b.className='tower-btn';b.dataset.idx=i;const ch='#'+d.color.toString(16).padStart(6,'0');b.innerHTML=`<span class="tower-hotkey">${i+1}</span><div class="tower-icon" style="background:${ch}22;border:1px solid ${ch}"><svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="${ch}"/></svg></div><div class="tower-meta"><span class="tower-name">${d.name}</span><span class="tower-cost">${d.cost} CR</span></div>`;b.addEventListener('click',()=>this._selectTower(i));b.addEventListener('mouseenter',()=>{if(this._towerPreview)this._towerPreview.show(b,TOWER_DEFS[i]);});b.addEventListener('mouseleave',()=>{if(this._towerPreview)this._towerPreview.hide();});c.appendChild(b);this.towerBtnEls.push(b);});}
   _makeHighlight(){const m=new THREE.Mesh(new THREE.CylinderGeometry(1.35,1.55,0.5,6),new THREE.MeshBasicMaterial({color:0x00ff88,transparent:true,opacity:0,blending:THREE.AdditiveBlending}));m.position.y=0.05;return m;}
   _bindEvents(){
     const cvs=this.gs.canvas;cvs.addEventListener('mousemove',e=>this._onMouseMove(e));cvs.addEventListener('click',e=>this._onClick(e));cvs.addEventListener('contextmenu',e=>{e.preventDefault();this._cancelSelect();});window.addEventListener('keydown',e=>this._onKey(e));
@@ -132,7 +132,7 @@ export class Game {
       this.sound.play('place');
       this.towerTypesPlaced.add(def.id);
       this._checkAchievement('first_tower');
-      if(this.towerTypesPlaced.size>=4) this._checkAchievement('all_types');
+      if(this.towerTypesPlaced.size>=TOWER_DEFS.length) this._checkAchievement('all_types');
       this._hideTowerMenu();
     } catch(err) {
       console.error('Tower placement failed:', err.message);
@@ -146,7 +146,7 @@ export class Game {
   }
   _onKey(e){
     if(this.state==='playing'){
-      if(e.key>='1'&&e.key<='4') this._selectTower(+e.key-1);
+      if(e.key>='1'&&e.key<='9'&&+e.key-1<TOWER_DEFS.length) this._selectTower(+e.key-1);
       if(e.key===' '){e.preventDefault();this._startWave();}
       if(e.key==='s'||e.key==='S') this._toggleSell();
       if(e.key==='Escape'){this._cancelSelect();this._hideTowerMenu();}
@@ -243,6 +243,7 @@ export class Game {
     if(this.waveActive||this.state!=='playing'||this.paused) return;
     if(this.currentWave>=this.totalWaves) return;
     this.currentWave++;
+    this.gs.applyTheme(getWaveTheme(this.currentWave));
     const waveDef=WAVES[this.currentWave-1];
     this.spawnQueue=[];
     for(const grp of waveDef){for(let i=0;i<grp.n;i++) this.spawnQueue.push({type:grp.t,delay:grp.iv});}
@@ -294,6 +295,7 @@ export class Game {
     const autoInd=document.getElementById('auto-wave-indicator');
     if(autoInd) autoInd.classList.add('hidden');
     this.gs.show();
+    this.gs.applyTheme(getWaveTheme(Math.max(1,this._startFromLevel)));
     document.getElementById('start-screen').classList.remove('active');
     document.getElementById('game-screen').classList.add('active');
     document.getElementById('gameover-overlay').classList.add('hidden');
